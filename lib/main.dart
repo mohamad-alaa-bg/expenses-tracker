@@ -1,10 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import './models/transaction.dart';
 import './Widgets/new_transaction.dart';
 import './Widgets/transaction_list.dart';
 import './Widgets/chart.dart';
 
 void main() {
+  // تجعل التطبيق يعمي في وضعية ال portrait
+//  WidgetsFlutterBinding.ensureInitialized();
+//  SystemChrome.setPreferredOrientations([
+//    DeviceOrientation.portraitDown,
+//    DeviceOrientation.portraitUp,
+//  ]);
   runApp(MyApp());
 }
 
@@ -28,9 +35,10 @@ class MyApp extends StatelessWidget {
                 ),
                 subtitle1: TextStyle(
                   fontFamily: 'Quicksand',
-
                 ),
-                button: TextStyle(color: Colors.white,),// هنا في حال لم نذكر نوع الخط ياخد الافتراضي الذي في الاعلى
+                button: TextStyle(
+                  color: Colors.white,
+                ), // هنا في حال لم نذكر نوع الخط ياخد الافتراضي الذي في الاعلى
               ),
           appBarTheme: AppBarTheme(
             textTheme: ThemeData.light().textTheme.copyWith(
@@ -75,7 +83,8 @@ class _MyHomePageState extends State<MyHomePage> {
         .toList();
   }
 
-  void _addNewTransaction(String txTitle, double txAmount, DateTime chosenDate) {
+  void _addNewTransaction(
+      String txTitle, double txAmount, DateTime chosenDate) {
     final newTx = Transaction(
       title: txTitle,
       amount: txAmount,
@@ -88,33 +97,50 @@ class _MyHomePageState extends State<MyHomePage> {
     });
   }
 
-  void _startAddNewTransaction(BuildContext ctx) {
+  void _startAddNewTransaction(BuildContext ctx,bool a) {
     showModalBottomSheet(
+      isScrollControlled: a,
       context: ctx,
       builder: (_) {
         return GestureDetector(child: NewTransaction(_addNewTransaction));
       },
     );
   }
-  void _deleteTransaction(String id){
+
+  void _deleteTransaction(String id) {
     setState(() {
       _userTransaction.removeWhere((tx) => tx.id == id);
     });
   }
+
+  bool _showChart = false;
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('Personal Expenses'),
-        actions: <Widget>[
-          IconButton(
-            icon: Icon(
-              Icons.add,
-            ),
-            onPressed: () => _startAddNewTransaction(context),
+    final mediaQuery  = MediaQuery.of(context) ;
+    final isLandScape =
+        mediaQuery.orientation == Orientation.landscape;
+    final appBar = AppBar(
+      title: Text('Personal Expenses'),
+      actions: <Widget>[
+        IconButton(
+          icon: Icon(
+            Icons.add,
           ),
-        ],
-      ),
+          onPressed: () {
+            _startAddNewTransaction(context,false);
+          },
+        ),
+      ],
+    );
+    final txListWidget = Container(
+        height: (mediaQuery.size.height -
+                appBar.preferredSize.height -
+                mediaQuery.padding.top) *
+            0.7,
+        child: TransactionList(_userTransaction, _deleteTransaction));
+    return Scaffold(
+      appBar: appBar,
       body: SingleChildScrollView(
         // قمنا باضافة سكرول لان عندما نستخد الكيبورد يصبح هناك مشكلة بسبب ضغط العناصر اما في حال وضعنا السكرول
         // فنصبح قادرين على تحريك الشاشة للاعلى والادنىى
@@ -122,17 +148,46 @@ class _MyHomePageState extends State<MyHomePage> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
 // mainAxisAlignment: MainAxisAlignment.start,
           children: <Widget>[
-            Container(
+            if (isLandScape)
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text('Show Chart'),
+                  Switch(
+                    value: _showChart,
+                    onChanged: (val) {
+                      setState(() {
+                        _showChart = val;
+                      });
+                    },
+                  ),
+                ],
+              ),
+            if (!isLandScape) Container(
               width: double.infinity,
+              height: (mediaQuery.size.height -
+                  appBar.preferredSize.height -
+                  mediaQuery.padding.top) *
+                  0.3,
               child: Chart(_recentTransaction),
             ),
-            TransactionList(_userTransaction,_deleteTransaction),
+            if(!isLandScape) txListWidget,
+            if(isLandScape) _showChart
+                ? Container(
+                    width: double.infinity,
+                    height: (mediaQuery.size.height -
+                            appBar.preferredSize.height -
+                            mediaQuery.padding.top) *
+                        0.6,
+                    child: Chart(_recentTransaction),
+                  )
+                : txListWidget,
           ],
         ),
       ),
       floatingActionButton: FloatingActionButton(
         child: Icon(Icons.add),
-        onPressed: () => _startAddNewTransaction(context),
+        onPressed: () => _startAddNewTransaction(context,true),
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
     );
